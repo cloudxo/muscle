@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lionkov/go9p/p"
 	"github.com/nicolagi/muscle/diff"
 )
 
@@ -209,6 +208,17 @@ func DiffTrees(a, b *Tree, options ...DiffTreesOption) error {
 	return diffTrees(a, b, aInitial, bInitial, &opts)
 }
 
+func mountedPath(t *Tree, n *Node) string {
+	if n == nil {
+		return "/dev/null"
+	}
+	// TODO: Assumes mountpoints.
+	if t.revision.IsNull() {
+		return filepath.Join("/mnt/muscle", t.revision.Hex(), strings.TrimPrefix(n.Path(), "root/"))
+	}
+	return filepath.Join("/mnt/snapshots", t.revision.Hex(), strings.TrimPrefix(n.Path(), "root/"))
+}
+
 func diffTrees(atree, btree *Tree, a, b *Node, opts *diffTreesOptions) error {
 	var an, bn diff.Node
 
@@ -247,27 +257,9 @@ func diffTrees(atree, btree *Tree, a, b *Node, opts *diffTreesOptions) error {
 		}
 	}
 
-	an = treeNode{t: atree, n: a, maxSize: opts.maxSize}
-	bn = treeNode{t: btree, n: b, maxSize: opts.maxSize}
-	output, err = diff.Unified(an, bn, opts.contextLines)
-	if errors.Is(err, errTreeNodeLarge) {
-		_, _ = fmt.Fprintf(opts.output, "omitting diff for large node: %v\n", err)
-		err = nil
-	}
-	if err != nil {
-		return err
-	}
-	if output != "" || a == nil || b == nil || a.D.Qid.Type&p.QTDIR != b.D.Qid.Type&p.QTDIR {
-		if opts.namesOnly {
-			_, _ = fmt.Fprintln(opts.output, commonp)
-		} else {
-			_, _ = fmt.Fprintf(opts.output, "--- %s\n+++ %s\n", ap, bp)
-			_, _ = fmt.Fprint(opts.output, output)
-		}
-	}
-
 	// We can recurse only if they are both directories.
 	if a == nil || b == nil || !a.IsDir() || !b.IsDir() {
+		_, _ = fmt.Fprintf(opts.output, "diff -u %s %s\n", mountedPath(atree, a), mountedPath(btree, b))
 		return nil
 	}
 

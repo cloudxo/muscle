@@ -335,7 +335,7 @@ func main() {
 		if err != nil {
 			cmdlog.WithField("cause", err).Fatal("Could not load remote tree")
 		}
-		err = tree.DiffTrees(localTree, remoteTree, tree.DiffTreesOutput(os.Stdout),
+		err = tree.DiffTrees(remoteTree, localTree, tree.DiffTreesOutput(os.Stdout),
 			tree.DiffTreesInitialPath(diffContext.prefix),
 			tree.DiffTreesContext(diffContext.context),
 			tree.DiffTreesNamesOnly(diffContext.names),
